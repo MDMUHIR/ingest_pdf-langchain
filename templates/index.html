@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Bee - Bangladeshi Law Assistant</title>
+    <style>
+        :root {
+            --primary: #FFC107;
+            --primary-dark: #FFA000;
+            --secondary: #212121;
+            --light: #f8f9fa;
+            --dark: #343a40;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: var(--primary);
+            color: var(--secondary);
+            padding: 1rem 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        
+        .logo-icon {
+            font-size: 2rem;
+        }
+        
+        .query-form {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            min-height: 100px;
+            font-family: inherit;
+        }
+        
+        button {
+            background-color: var(--primary);
+            color: var(--secondary);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .response-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .response-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .response-meta {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .response-content {
+            white-space: pre-line;
+            line-height: 1.7;
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .tag-legal {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .tag-story {
+            background-color: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .tag-general {
+            background-color: #f5f5f5;
+            color: #616161;
+        }
+        
+        .tag-bangla {
+            background-color: #fff8e1;
+            color: #ff8f00;
+        }
+        
+        .tag-english {
+            background-color: #f1f8e9;
+            color: #558b2f;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .logo {
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🐝</span>
+                    <h1>Legal Bee</h1>
+                </div>
+                <p>Your Bangladeshi Law Assistant</p>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="query-form">
+            <form method="post">
+                <div class="form-group">
+                    <label for="query">Ask a legal question (in Bangla or English):</label>
+                    <textarea id="query" name="query" required>{{ query if query else "" }}</textarea>
+                </div>
+                <button type="submit">Submit Question</button>
+            </form>
+        </div>
+        
+        {% if response %}
+        <div class="response-container">
+            <div class="response-header">
+                <h3>Legal Bee's Response</h3>
+                <div class="response-meta">
+                    {% if language == "bangla" %}
+                    <span class="tag tag-bangla">Bangla</span>
+                    {% else %}
+                    <span class="tag tag-english">English</span>
+                    {% endif %}
+                    
+                    {% if "LEGAL_QUESTION" in category %}
+                    <span class="tag tag-legal">Legal Question</span>
+                    {% elif "STORY_ANALYSIS" in category %}
+                    <span class="tag tag-story">Story Analysis</span>
+                    {% else %}
+                    <span class="tag tag-general">General</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="response-content">
+                {{ response }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <footer>
+        <div class="container">
+            <p>Legal Bee provides information based on Bangladeshi laws. This is not legal advice.</p>
+            <p>&copy; 2024 Legal Bee</p>
+        </div>
+    </footer>
+</body>
+</html>

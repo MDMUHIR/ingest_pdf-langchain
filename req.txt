@@ -1,0 +1,12 @@
+pymupdf
+python-dotenv
+langchain
+langchain-huggingface
+langchain-google-genai
+sentence-transformers
+langchain-pinecone
+pinecone-client
+fastapi
+uvicorn
+pydantic
+jinja2

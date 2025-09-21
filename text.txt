@@ -1,0 +1,52 @@
+
+ID: 
+
+chunk:
+
+doc_id: 
+
+lang:
+
+page:
+
+section: 
+
+source: 
+
+text:
+
+title: 
+chapter :
+
+
+
+{
+  "id": "a_unique_vector_id_for_this_chunk",
+  "values": [0.123, -0.456, ...], // This is the embedding vector
+  "metadata": {
+    "doc_id": "007bc756073e67999a428c5866fdc719",
+    "title": "কপিরাইট আইন, ২০২৩",
+    "title-bn": "কপিরাইট আইন, ২০২৩", [ If the extracted title is in English]
+    "text": "(খ) অ্যাসিস্ট্যান্ট কমিশনার অব কাস্টমস এর নিম্নে নহেন এইরূপ...",
+    "chapter": "অধ্যায় ৪: কাস্টমস শুল্ক ও মাশুল / CHAPTER I: INTRODUCTION / CHAPTER 1: INTRODUCTION ",
+    "section": "১৮ / 18",                 
+    "act-number": "১৯৯১ সনের ১৪ নং আইন / ACT NO. XLV OF 1860 ",                 
+    "source": "২০২৩ সনের ৩৪ নং আইন হইতে ৬৬ নং আইন পর্যন্ত.pdf",
+    "page": 254,
+    "lang": "bn / en"
+  }
+}
+
+Found 5 PDF files in data/laws
+2025-09-21 15:38:04,244 | INFO | File: act-print-11.pdf | title_bn (len=14) | title_en (len=20) | act: 1860 এর আইন নং এক্সএলভি / Act No. XLV of 1860
+2025-09-21 15:38:04,675 | INFO | Prepared 404 chunks from act-print-11.pdf
+2025-09-21 15:38:07,740 | INFO | File: act-print-51.pdf | title_bn (len=29) | title_en (len=36) | act: 1973 সালের আইন নং অষ্টম / Act No. VIII of 1973
+2025-09-21 15:38:07,761 | INFO | Prepared 11 chunks from act-print-51.pdf
+2025-09-21 15:38:10,439 | INFO | File: act-print-750.pdf | title_bn (len=0) | title_en (len=0) | act: ১৯৯১ সনের ১৩ নং / 1
+2025-09-21 15:38:10,465 | INFO | Prepared 6 chunks from act-print-750.pdf
+2025-09-21 15:38:13,022 | INFO | File: act-print-751.pdf | title_bn (len=0) | title_en (len=0) | act: ১৯৯১ সনের ১৪ নং / 1
+2025-09-21 15:38:13,798 | INFO | Prepared 292 chunks from act-print-751.pdf
+2025-09-21 15:38:15,685 | INFO | File: ২০২৩ সনের ৩৪ নং আইন হইতে ৬৬ নং আইন পর্যন্ত.pdf | title_bn (len=0) | title_en (len=0) | act: ২০২৩ সনের ৩৪ নং / 2021
+2025-09-21 15:38:19,091 | INFO | Prepared 1043 chunks from ২০২৩ সনের ৩৪ নং আইন হইতে ৬৬ নং আইন পর্যন্ত.pdf
+2025-09-21 15:38:19,092 | INFO | Saved ingest_report.json (summary).
+2025-09-21 15:38:19,092 | INFO | Total prepared chunks: 1756
