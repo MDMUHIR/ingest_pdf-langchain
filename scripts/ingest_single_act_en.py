@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """
-ingest_multi_bn_pdfs.py
+ingest_single_en_pdfs.py
 
-Optimized for multi-act Bengali compilation PDFs.
-- Detects new acts/titles per page and updates metadata accordingly.
-- Resets chapter/section on new act.
-- Handles long documents with persistent state.
+Optimized for single English act PDFs.
+- Extracts title/act from first ~800 chars to avoid false matches.
+- Handles chapter/section persistence per page.
+- Assumes no multi-act structure.
+- Enriched with translation for bilingual metadata (title-bn, act-number).
+- Safe translation with retries and context.
+- Chunk saving for long texts, audit logs, OCR fallback.
+- Skips short chunks unless key terms like 'Section|Chapter'.
 """
 import os, glob, hashlib, json, re, time, logging
 from typing import List, Dict, Tuple, Any
@@ -28,13 +32,13 @@ except ImportError:
 
 # ---------- Config ----------
 load_dotenv()
-DATA_DIR = os.environ.get("DATA_DIR", "data/laws/bn_multi")
+DATA_DIR = os.environ.get("DATA_DIR", "data/laws/en_single")
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 PINECONE_ENV = os.environ.get("PINECONE_ENVIRONMENT")  # optional
 PINECONE_INDEX_NAME = os.environ.get("PINECONE_INDEX_NAME")
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 BATCH_SIZE = int(os.environ.get("BATCH_SIZE", 128))
-ARTIFACTS_DIR = os.environ.get("ARTIFACTS_DIR", "ingest_artifacts_multi")
+ARTIFACTS_DIR = os.environ.get("ARTIFACTS_DIR", "ingest_artifacts_en")
 CHUNK_TEXT_SAVE_THRESHOLD = int(os.environ.get("CHUNK_TEXT_SAVE_THRESHOLD", 8000))
 MIN_CHUNK_LEN = int(os.environ.get("MIN_CHUNK_LEN", 10))
 SKIP_EXISTING = os.environ.get("SKIP_EXISTING", "false").lower() in ("1", "true", "yes")
@@ -44,7 +48,7 @@ os.makedirs(os.path.join(ARTIFACTS_DIR, "chunks"), exist_ok=True)
 
 # ---------- Logging ----------
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-log = logging.getLogger("ingest_multi")
+log = logging.getLogger("ingest_en")
 
 # ---------- Utilities ----------
 bn_to_en_digits = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
@@ -57,20 +61,17 @@ def strip_known_footers_and_urls(text: str) -> str:
     text = re.sub(r"bdlaws\.minlaw\.gov\.bd\S*", "", text, flags=re.I)
     text = re.sub(r"\n?\s*\d+\s*/\s*\d+\s*\n?", "\n", text)
     text = re.sub(r"\d{1,2}/\d{1,2}/\d{4}", "", text)  # Dates
-    # Remove short/broken lines
-    text = "\n".join([ln for ln in text.splitlines() if len(ln.strip()) > 2])
-    text = "\n".join([ln for ln in text.splitlines() if not re.search(r"copyright|ministry|bdlaws", ln, re.I)])
+    text = "\n".join([ln for ln in text.splitlines() if not re.search(r"copyright|ministry|bdlaws|legislative|parliamentary|affairs|division|\d+/\d+", ln, re.I)])
     return normalize_whitespace(text)
 
 def detect_lang(text: str) -> str:
-    return "bn" if re.search(r"[\u0980-\u09FF]", text) else "en"
+    return "en"  # Force English for this script
 
 def make_doc_id(fname: str, page: int, cidx: int, preview: str) -> str:
     base = f"{fname}|p{page}|c{cidx}|{preview[:200]}"
     return hashlib.sha256(base.encode("utf-8")).hexdigest()[:32]
 
 def safe_translate(text: str, target: str, context: str = "", retries: int = 3) -> str:
-    # (Same as Script 2)
     if not text.strip() or re.fullmatch(r"[\s\d\W/().,-]+", text):
         return text
     for attempt in range(retries):
@@ -86,7 +87,6 @@ def safe_translate(text: str, target: str, context: str = "", retries: int = 3) 
     return text
 
 # ---------- PDF loader ----------
-# (Same as Script 2, with lang="ben+eng" for OCR)
 def load_pdf_fulltext(path: str):
     doc = fitz.open(path)
     for i in range(len(doc)):
@@ -99,7 +99,7 @@ def load_pdf_fulltext(path: str):
                 pix = page.get_pixmap(dpi=200)
                 img_path = os.path.join(ARTIFACTS_DIR, f"ocr_{os.path.basename(path)}_{i+1}.png")
                 pix.save(img_path)
-                ocr_text = pytesseract.image_to_string(Image.open(img_path), lang="ben+eng")
+                ocr_text = pytesseract.image_to_string(Image.open(img_path), lang="eng")
                 if len(ocr_text.strip()) > len(text.strip()):
                     text = strip_known_footers_and_urls(ocr_text)
             yield i+1, normalize_whitespace(text)
@@ -107,59 +107,55 @@ def load_pdf_fulltext(path: str):
             log.exception("Page %d extract failed: %s", i+1, e)
             yield i+1, ""
 
-# ---------- Title & act extraction (Bengali, with is_new flag for multi) ----------
-BN_TITLE_PATTERNS = [
-    re.compile(r'^([^\n]+? আইন)[, ]*\d{4}', re.M | re.I),
-    re.compile(r'^(.+?)\s*\(\s*\d{4}\s*সনের\s*\d+\s*নং\s*আইন\s*\)', re.M | re.S),
+# ---------- Title & act extraction (English only, limited to first 800 chars, refined patterns) ----------
+ENG_TITLE_PATTERNS = [
+    re.compile(r'^(The\s+[\w\-\.,\(\) ]+?(?:Act|Code|Ordinance|Rules)[\w \,\:\(\)]*?\d{3,4})', re.I | re.M),
+    re.compile(r'^(The\s+[\w\-\.,\(\) ]+?Act,\s*\d{4})', re.I | re.M),
+    re.compile(r'^The\s+[\w\-\.,\(\) ]+Act,\s*\d{4}', re.I | re.M),
 ]
-BN_ACTNO_PATTERNS = [
-    re.compile(r'\(\s*(\d{4})\s*সনের\s*(\d+)\s*নং\s*আইন\s*\)', re.I),
-    re.compile(r'(\d{3,4}\s*সনের\s*\d+\s*নং)', re.I),
-    re.compile(r'(\d+\s*নং\s*আইন)', re.I),
+ENG_ACTNO_PATTERNS = [
+    re.compile(r'\(ACT NO\.?\s*([IVXLC\d]+)\s*OF\s*(\d{4})\)', re.I),
+    re.compile(r'ACT NO\.?\s*([IVXLC\d]+)\s*OF\s*(\d{4})', re.I),
 ]
 
-def extract_law_title_and_number(path: str, text: str) -> Tuple[str, str, bool]:
-    fp = strip_known_footers_and_urls(text or "")[:800]
-    title = ""
-    act = ""
-    is_new = False
-    for p in BN_TITLE_PATTERNS:
+def extract_law_title_and_number(path: str, text: str) -> Tuple[str, str]:
+    fp = strip_known_footers_and_urls(text or "")[:800]  # Limit to first 800 chars
+    for p in ENG_TITLE_PATTERNS:
         m = p.search(fp)
         if m:
-            title = m.group(1).strip()
-            is_new = True
-            for a in BN_ACTNO_PATTERNS:
+            title = m.group(0).strip()
+            for a in ENG_ACTNO_PATTERNS:
                 am = a.search(fp)
                 if am:
-                    act = am.group(0).strip()
-                    return title, act, is_new
-            return title, act, is_new
+                    act = f"ACT NO. {am.group(1)} OF {am.group(2)}"
+                    return title, act
+            return title, ""
     fname = os.path.basename(path)
-    return os.path.splitext(fname)[0].replace("_"," ").replace("-"," "), "", False
+    return os.path.splitext(fname)[0].replace("_"," ").replace("-"," "), ""
 
 # ---------- Chapter and Section extraction ----------
-# (Same as Script 2)
+ROMAN_TO_INT = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10}  # Add more if needed
+
 def extract_chapter(text: str) -> str:
-    chap_bn_num = re.search(r'অধ্যায়\s+([০-৯]+|\d+)', text)
-    if chap_bn_num:
-        num = chap_bn_num.group(1).translate(bn_to_en_digits)
-        return f"অধ্যায় {num}"
-    bn_word_to_num = {"প্রথম": "১", "দ্বিতীয়": "২", "তৃতীয়": "৩", "চতুর্থ": "৪", "পঞ্চম": "৫", "ষষ্ঠ": "৬", "সপ্তম": "৭", "অষ্টম": "৮", "নবম": "৯", "দশম": "১০"}
-    chap_bn_word = re.search(r'(' + '|'.join(bn_word_to_num.keys()) + r')\s*অধ্যায়', text)
-    if chap_bn_word:
-        return f"{chap_bn_word.group(1)} অধ্যায়"
+    chap_num = re.search(r'Chapter\s+(\d+)', text, re.I)
+    if chap_num:
+        return f"Chapter {chap_num.group(1)}"
+    chap_roman = re.search(r'Chapter\s+([IVXLC]+)', text, re.I)
+    if chap_roman:
+        roman = chap_roman.group(1).upper()
+        num = ROMAN_TO_INT.get(roman, roman)
+        return f"Chapter {num}"
     return ""
 
 def extract_section(text: str) -> str:
-    sec_bn = re.search(r'ধারা\s+([০-৯]+|\d+)', text)
-    if sec_bn:
-        num = sec_bn.group(1).translate(bn_to_en_digits)
-        return f"{num} / ধারা {num}"
+    sec = re.search(r'Section\s+(\d+)', text, re.I)
+    if sec:
+        return f"Section {sec.group(1)}"
     return ""
 
 # ---------- Splitter ----------
 splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200,
-                                          separators=["\n\n", "\n", "।", ".", ";", ":", " "])
+                                          separators=["\n\n", "\n", ".", ";", ":", " "])
 
 # ---------- Embeddings ----------
 log.info("Loading embedding model: %s", EMBEDDING_MODEL)
@@ -182,42 +178,22 @@ def build_documents(data_dir: str) -> List[Dict]:
     for pdf in pdf_files:
         fname = os.path.basename(pdf)
         try:
-            # Initial from first page
             first_page_text = next((t for p,t in load_pdf_fulltext(pdf) if p==1), "")
-            title_bn, act_bn, _ = extract_law_title_and_number(pdf, first_page_text)
-            title_en = safe_translate(title_bn, "en", "Act title")
-            title_field = title_bn
-            act_number_field = f"{act_bn} / {safe_translate(act_bn, 'en', 'Act number')}" if act_bn else ""
+            title_en, act_en = extract_law_title_and_number(pdf, first_page_text)
+            title_bn = safe_translate(title_en, "bn", "Act title")
+            title_field = title_en
+            act_number_field = f"{safe_translate(act_en, 'bn', 'Act number')} / {act_en}" if act_en else ""
             chunk_count = 0
-            current_chapter = ""
-            current_section = ""
             for page_no, text in load_pdf_fulltext(pdf):
                 if not text.strip(): continue
-                # Detect new act on this page
-                new_title_bn, new_act_bn, is_new = extract_law_title_and_number(pdf, text)
-                if is_new and new_title_bn:
-                    log.info("New act detected on p%d of %s: %s", page_no, fname, new_title_bn[:50])
-                    title_bn = new_title_bn
-                    title_en = safe_translate(new_title_bn, "en", "Act title")
-                    title_field = new_title_bn
-                    if new_act_bn:
-                        act_number_field = f"{new_act_bn} / {safe_translate(new_act_bn, 'en', 'Act number')}"
-                    # Reset for new act
-                    current_chapter = ""
-                    current_section = ""
-                # Update chapter/section
-                new_chapter = extract_chapter(text)
-                if new_chapter:
-                    current_chapter = new_chapter
-                new_section = extract_section(text)
-                if new_section:
-                    current_section = new_section
+                current_chapter = extract_chapter(text) or ""
+                current_section = extract_section(text) or ""
                 for cidx, chunk in enumerate(splitter.split_text(text)):
-                    if len(chunk.strip()) < MIN_CHUNK_LEN and not re.search(r'ধারা|অধ্যায়', chunk): 
+                    if len(chunk.strip()) < MIN_CHUNK_LEN and not re.search(r'Section|Chapter', chunk, re.I): 
                         continue
                     chunk_section = extract_section(chunk) or current_section
                     chunk_chapter = extract_chapter(chunk) or current_chapter
-                    lang_field = f"{detect_lang(chunk)} / {'en' if detect_lang(chunk)=='bn' else 'bn'}"
+                    lang_field = "en / bn"
                     doc_id = make_doc_id(fname, page_no, chunk_count, chunk)
                     metadata = {
                         "doc_id": doc_id, "title": title_field, "title-bn": title_bn, "title-en": title_en,
@@ -246,7 +222,6 @@ def build_documents(data_dir: str) -> List[Dict]:
     return docs
 
 # ---------- Fetch & upsert ----------
-# (Same as previous scripts)
 def fetch_existing_ids(ids: List[str]) -> set:
     found = set()
     for i in range(0, len(ids), 100):
@@ -259,7 +234,6 @@ def fetch_existing_ids(ids: List[str]) -> set:
     return found
 
 def upsert_documents_to_pinecone(docs: List[Dict], batch_size=BATCH_SIZE):
-    # (Identical to Script 1/2)
     if not docs: return log.info("No docs to upsert.")
     if SKIP_EXISTING:
         existing = fetch_existing_ids([d["id"] for d in docs])

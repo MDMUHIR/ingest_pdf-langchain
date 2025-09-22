@@ -28,7 +28,7 @@ emb = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multili
 
 # Pinecone retriever setup
 index_name = os.environ["PINECONE_INDEX_NAME"]
-vectorstore = PineconeVectorStore(index_name=index_name, embedding=emb, namespace="_default_")
+vectorstore = PineconeVectorStore(index_name=index_name, embedding=emb, namespace="")  # Fixed: Default namespace is empty string, not "_default_"
 
 # OpenRouter LLM
 OPENROUTER_API_KEY = os.environ["OPENROUTER_API_KEY"]
@@ -68,25 +68,31 @@ def detect_language_with_confidence(query: str) -> Tuple[str, float]:
         else:
             return 'en', 0.6
 
-# Legal domain keyword extraction
+# Legal domain keyword extraction (Enriched: Added more domains and keywords for broader coverage)
 LEGAL_KEYWORDS_EN = {
-    'criminal': ['murder', 'theft', 'fraud', 'assault', 'criminal', 'police', 'fir', 'charge', 'arrest'],
-    'civil': ['contract', 'property', 'land', 'dispute', 'damages', 'civil', 'suit', 'decree'],
-    'family': ['marriage', 'divorce', 'custody', 'alimony', 'family', 'wife', 'husband', 'child'],
-    'banking': ['bank', 'loan', 'defaulter', 'account', 'deposit', 'credit', 'banking'],
-    'election': ['election', 'vote', 'candidate', 'officer', 'commission', 'ballot'],
-    'labor': ['worker', 'employee', 'salary', 'wage', 'labor', 'employment', 'job'],
-    'cyber': ['internet', 'online', 'digital', 'cyber', 'computer', 'data', 'hacking']
+    'criminal': ['murder', 'theft', 'fraud', 'assault', 'criminal', 'police', 'fir', 'charge', 'arrest', 'bail', 'trial'],
+    'civil': ['contract', 'property', 'land', 'dispute', 'damages', 'civil', 'suit', 'decree', 'injunction', 'specific performance'],
+    'family': ['marriage', 'divorce', 'custody', 'alimony', 'family', 'wife', 'husband', 'child', 'adoption', 'inheritance'],
+    'banking': ['bank', 'loan', 'defaulter', 'account', 'deposit', 'credit', 'banking', 'foreclosure', 'recovery', 'insolvency'],
+    'election': ['election', 'vote', 'candidate', 'officer', 'commission', 'ballot', 'petition', 'disqualification'],
+    'labor': ['worker', 'employee', 'salary', 'wage', 'labor', 'employment', 'job', 'termination', 'compensation', 'strike'],
+    'cyber': ['internet', 'online', 'digital', 'cyber', 'computer', 'data', 'hacking', 'privacy', 'defamation', 'fraud'],
+    'constitutional': ['constitution', 'rights', 'fundamental', 'writ', 'petition', 'supreme court', 'high court'],  # New
+    'administrative': ['administrative', 'tribunal', 'service', 'government', 'order', 'appeal'],  # New
+    'environmental': ['environment', 'pollution', 'forest', 'wildlife', 'conservation']  # New
 }
 
 LEGAL_KEYWORDS_BN = {
-    'criminal': ['খুন', 'চুরি', 'প্রতারণা', 'আক্রমণ', 'ফৌজদারি', 'পুলিশ', 'মামলা', 'গ্রেফতার'],
-    'civil': ['চুক্তি', 'সম্পত্তি', 'জমি', 'বিরোধ', 'ক্ষতিপূরণ', 'দেওয়ানি', 'মামলা', 'ডিক্রি'],
-    'family': ['বিবাহ', 'তালাক', 'অভিভাবকত্ব', 'ভরণপোষণ', 'পারিবারিক', 'স্ত্রী', 'স্বামী', 'সন্তান'],
-    'banking': ['ব্যাংক', 'ঋণ', 'খেলাপি', 'অ্যাকাউন্ট', 'আমানত', 'ঋণ', 'ব্যাংকিং'],
-    'election': ['নির্বাচন', 'ভোট', 'প্রার্থী', 'কর্মকর্তা', 'কমিশন', 'ব্যালট'],
-    'labor': ['শ্রমিক', 'কর্মচারী', 'বেতন', 'মজুরি', 'শ্রম', 'চাকরি', 'কাজ'],
-    'cyber': ['ইন্টারনেট', 'অনলাইন', 'ডিজিটাল', 'সাইবার', 'কম্পিউটার', 'তথ্য', 'হ্যাকিং']
+    'criminal': ['খুন', 'চুরি', 'প্রতারণা', 'আক্রমণ', 'ফৌজদারি', 'পুলিশ', 'মামলা', 'গ্রেফতার', 'জামিন', 'বিচার'],
+    'civil': ['চুক্তি', 'সম্পত্তি', 'জমি', 'বিরোধ', 'ক্ষতিপূরণ', 'দেওয়ানি', 'মামলা', 'ডিক্রি', 'নিষেধাজ্ঞা', 'নির্দিষ্ট কর্মসম্পাদন'],
+    'family': ['বিবাহ', 'তালাক', 'অভিভাবকত্ব', 'ভরণপোষণ', 'পারিবারিক', 'স্ত্রী', 'স্বামী', 'সন্তান', 'দত্তক', 'উত্তরাধিকার'],
+    'banking': ['ব্যাংক', 'ঋণ', 'খেলাপি', 'অ্যাকাউন্ট', 'আমানত', 'ঋণ', 'ব্যাংকিং', 'ফোরক্লোজার', 'আদায়', 'দেউলিয়া'],
+    'election': ['নির্বাচন', 'ভোট', 'প্রার্থী', 'কর্মকর্তা', 'কমিশন', 'ব্যালট', 'পিটিশন', 'অযোগ্যতা'],
+    'labor': ['শ্রমিক', 'কর্মচারী', 'বেতন', 'মজুরি', 'শ্রম', 'চাকরি', 'কাজ', 'বরখাস্ত', 'ক্ষতিপূরণ', 'ধর্মঘট'],
+    'cyber': ['ইন্টারনেট', 'অনলাইন', 'ডিজিটাল', 'সাইবার', 'কম্পিউটার', 'তথ্য', 'হ্যাকিং', 'গোপনীয়তা', 'মানহানি', 'প্রতারণা'],
+    'constitutional': ['সংবিধান', 'অধিকার', 'মৌলিক', 'রিট', 'পিটিশন', 'সুপ্রিম কোর্ট', 'হাই কোর্ট'],  # New
+    'administrative': ['প্রশাসনিক', 'ট্রাইব্যুনাল', 'সার্ভিস', 'সরকার', 'আদেশ', 'আপিল'],  # New
+    'environmental': ['পরিবেশ', 'দূষণ', 'বন', 'বন্যপ্রাণী', 'সংরক্ষণ']  # New
 }
 
 def extract_legal_domain(query: str, lang: str) -> List[str]:
@@ -110,9 +116,9 @@ def expand_query_terms(query: str, lang: str) -> List[str]:
     for domain in domains:
         if domain in LEGAL_KEYWORDS_EN:
             if lang == 'bn':
-                expansions.extend(LEGAL_KEYWORDS_BN.get(domain, [])[:3])
+                expansions.extend(LEGAL_KEYWORDS_BN.get(domain, [])[:5])  # Enriched: Increased to top 5 for better coverage
             else:
-                expansions.extend(LEGAL_KEYWORDS_EN.get(domain, [])[:3])
+                expansions.extend(LEGAL_KEYWORDS_EN.get(domain, [])[:5])
     
     return list(set(expansions))
 
@@ -170,69 +176,59 @@ def enhanced_translate_query(query: str, source_lang: str, target_lang: str) -> 
         logger.warning(f"Enhanced translation failed: {e}")
         return query
 
-# Multi-strategy retrieval system
+# Multi-strategy retrieval system (Enriched: Use similarity_search_with_score for actual relevance scores; added min_score filter)
 class MultiStrategyRetriever:
-    def __init__(self, vectorstore, k=30):
+    def __init__(self, vectorstore, k=30, min_score=0.6):
         self.vectorstore = vectorstore
         self.k = k
+        self.min_score = min_score  # Enriched: Minimum cosine similarity threshold
     
     def hybrid_search(self, query: str, lang: str) -> List[Document]:
-        """Hybrid search combining multiple strategies"""
-        all_docs = []
+        """Hybrid search combining multiple strategies with actual scores"""
+        all_results = []  # Store (doc, score) pairs
+        
+        # Helper function to perform search and filter by min_score
+        def perform_search(search_query: str, strategy: str, score_multiplier: float = 1.0):
+            try:
+                results = self.vectorstore.similarity_search_with_score(search_query, k=self.k)
+                filtered = [(doc, score * score_multiplier) for doc, score in results if score >= self.min_score]
+                for doc, score in filtered:
+                    doc.metadata['retrieval_strategy'] = strategy
+                    doc.metadata['relevance_score'] = score
+                return [doc for doc, _ in filtered]
+            except Exception as e:
+                logger.error(f"Search for '{search_query}' failed: {e}")
+                return []
         
         # Strategy 1: Direct similarity search
-        try:
-            direct_docs = self.vectorstore.similarity_search(query, k=self.k)
-            for doc in direct_docs:
-                doc.metadata['retrieval_strategy'] = 'direct'
-                doc.metadata['relevance_score'] = 1.0
-            all_docs.extend(direct_docs)
-        except Exception as e:
-            logger.error(f"Direct search failed: {e}")
+        direct_docs = perform_search(query, 'direct', 1.0)
+        all_results.extend(direct_docs)
         
-        # Strategy 2: Domain-specific search
+        # Strategy 2: Domain-specific search (slightly penalized score)
         domains = extract_legal_domain(query, lang)
         for domain in domains:
             domain_keywords = LEGAL_KEYWORDS_BN.get(domain, []) if lang == 'bn' else LEGAL_KEYWORDS_EN.get(domain, [])
             for keyword in domain_keywords[:3]:  # Limit to top 3 keywords
-                try:
-                    keyword_docs = self.vectorstore.similarity_search(keyword, k=10)
-                    for doc in keyword_docs:
-                        doc.metadata['retrieval_strategy'] = f'domain_{domain}'
-                        doc.metadata['relevance_score'] = 0.7
-                    all_docs.extend(keyword_docs)
-                except Exception as e:
-                    logger.error(f"Domain search for {keyword} failed: {e}")
+                keyword_docs = perform_search(keyword, f'domain_{domain}', 0.8)  # Enriched: Multiplier for domain strategy
+                all_results.extend(keyword_docs)
         
         # Strategy 3: Translated query search
         target_lang = 'en' if lang == 'bn' else 'bn'
         translated_query = enhanced_translate_query(query, lang, target_lang)
         if translated_query != query:
-            try:
-                translated_docs = self.vectorstore.similarity_search(translated_query, k=self.k)
-                for doc in translated_docs:
-                    doc.metadata['retrieval_strategy'] = 'translated'
-                    doc.metadata['relevance_score'] = 0.9
-                all_docs.extend(translated_docs)
-            except Exception as e:
-                logger.error(f"Translated search failed: {e}")
+            translated_docs = perform_search(translated_query, 'translated', 0.95)  # Enriched: High multiplier for translated
+            all_results.extend(translated_docs)
         
-        # Strategy 4: Expanded query search
+        # Strategy 4: Expanded query search (more penalized)
         expanded_terms = expand_query_terms(query, lang)
         for term in expanded_terms[:5]:  # Limit to top 5 expanded terms
-            try:
-                expanded_docs = self.vectorstore.similarity_search(term, k=8)
-                for doc in expanded_docs:
-                    doc.metadata['retrieval_strategy'] = 'expanded'
-                    doc.metadata['relevance_score'] = 0.6
-                all_docs.extend(expanded_docs)
-            except Exception as e:
-                logger.error(f"Expanded search for {term} failed: {e}")
+            expanded_docs = perform_search(term, 'expanded', 0.7)  # Enriched: Multiplier for expanded
+            all_results.extend(expanded_docs)
         
-        return all_docs
+        return all_results  # Now list of docs with scores in metadata
     
     def intelligent_deduplication(self, docs: List[Document]) -> List[Document]:
-        """Intelligent deduplication with relevance scoring"""
+        """Intelligent deduplication with relevance scoring (Enriched: Aggregate max score for duplicates)"""
         unique_docs = {}
         
         for doc in docs:
@@ -244,14 +240,8 @@ class MultiStrategyRetriever:
             
             key = f"{doc_id}_{act_num}_{page}_{section}" if doc_id else f"{hash(doc.page_content[:200])}_{page}_{section}"
             
-            if key not in unique_docs:
-                unique_docs[key] = doc
-            else:
-                # Keep the document with higher relevance score
-                existing_score = unique_docs[key].metadata.get('relevance_score', 0.5)
-                new_score = doc.metadata.get('relevance_score', 0.5)
-                if new_score > existing_score:
-                    unique_docs[key] = doc
+            if key not in unique_docs or doc.metadata.get('relevance_score', 0) > unique_docs[key].metadata.get('relevance_score', 0):
+                unique_docs[key] = doc  # Keep the one with highest score
         
         # Sort by relevance score and retrieval strategy priority
         strategy_priority = {
@@ -272,13 +262,13 @@ class MultiStrategyRetriever:
         
         return sorted_docs[:25]  # Return top 25 most relevant documents
 
-# Initialize enhanced retriever
-multi_retriever = MultiStrategyRetriever(vectorstore)
+# Initialize enhanced retriever (Enriched: Added min_score parameter)
+multi_retriever = MultiStrategyRetriever(vectorstore, min_score=0.65)  # Enriched: Slightly higher threshold for quality
 
-# Enhanced document relevance scoring
+# Enhanced document relevance scoring (Enriched: Combined with vector score if available)
 def score_document_relevance(doc: Document, query: str, lang: str) -> float:
     """Score document relevance based on multiple factors"""
-    score = 0.0
+    score = doc.metadata.get('relevance_score', 0.5) * 0.5  # Start with 50% weight from vector score
     content = doc.page_content.lower()
     query_lower = query.lower()
     
@@ -287,7 +277,7 @@ def score_document_relevance(doc: Document, query: str, lang: str) -> float:
     content_words = set(content.split())
     common_words = query_words.intersection(content_words)
     if query_words:
-        score += (len(common_words) / len(query_words)) * 0.4
+        score += (len(common_words) / len(query_words)) * 0.2  # Reduced weight
     
     # Legal domain relevance
     domains = extract_legal_domain(query, lang)
@@ -295,16 +285,16 @@ def score_document_relevance(doc: Document, query: str, lang: str) -> float:
         keywords = LEGAL_KEYWORDS_BN.get(domain, []) if lang == 'bn' else LEGAL_KEYWORDS_EN.get(domain, [])
         domain_matches = sum(1 for keyword in keywords if keyword in content)
         if keywords:
-            score += (domain_matches / len(keywords)) * 0.3
+            score += (domain_matches / len(keywords)) * 0.2  # Reduced weight
     
     # Metadata quality scoring
     metadata = doc.metadata
     if metadata.get('section'):
-        score += 0.1
+        score += 0.05
     if metadata.get('act-number'):
-        score += 0.1
+        score += 0.05
     if metadata.get('title'):
-        score += 0.1
+        score += 0.05
     
     return min(score, 1.0)
 
@@ -362,10 +352,10 @@ def format_context_intelligently(docs: List[Document], query: str, lang: str) ->
             
             cite = " - ".join(citation_parts)
             
-            # Clean and truncate content
+            # Clean and truncate content (Shortened: Reduced from 800 to 400 for brevity)
             content = doc.page_content.strip()
-            if len(content) > 600:
-                content = content[:600] + "..."
+            if len(content) > 400:
+                content = content[:400] + "..."
             
             act_sections.append(f"[{cite}]\n{content}")
         
@@ -374,53 +364,54 @@ def format_context_intelligently(docs: List[Document], query: str, lang: str) ->
     
     return "\n\n--- NEXT ACT ---\n\n".join(formatted_sections)
 
-# Enhanced system prompts with better legal analysis
+# Enhanced system prompts with better legal analysis and conciseness instruction
 ENHANCED_SYSTEM_PROMPT_EN = """You are LEGAL BEE, an expert AI Legal Assistant specializing in Bangladeshi Law with advanced legal analysis capabilities.
 
 ### Core Expertise:
 You have deep knowledge of Bangladeshi legal system including constitutional law, civil law, criminal law, family law, banking law, labor law, cyber law, and administrative law. You understand legal precedents, procedural requirements, and practical implications.
 
 ### Response Structure (MANDATORY):
-Always structure your response with these exact sections:
+Always structure your response with these exact sections, keeping each section concise and focused on the main topic:
 
 **🎯 LEGAL ISSUE IDENTIFICATION**
-- Clearly identify the specific legal problem(s)
+- Briefly identify the specific legal problem(s)
 - Categorize the area of law involved
 - Highlight urgency level (if applicable)
 
 **📚 APPLICABLE LAW & ANALYSIS**
-- State relevant laws, acts, and sections with precise citations
-- Explain what each law means in practical terms
-- Analyze how the law applies to the specific situation
+- State key relevant laws, acts, and sections with precise citations
+- Concisely explain what each law means
+- Briefly analyze application to the situation
 
 **⚖️ LEGAL RIGHTS & REMEDIES**
-- List specific rights of the person
-- Available legal remedies and options
-- Potential outcomes and consequences
+- List main rights of the person
+- Key available legal remedies
+- Main potential outcomes
 
 **📋 STEP-BY-STEP ACTION PLAN**
-- Immediate actions to take
-- Documentation needed
-- Legal procedures to follow
-- Timeline considerations
+- Key immediate actions
+- Essential documentation
+- Main legal procedures
+- Critical timeline considerations
 
 **⚠️ IMPORTANT CONSIDERATIONS**
-- Potential challenges or complications
-- Time limitations (statute of limitations)
-- Costs and practical considerations
-- When to seek urgent legal help
+- Main challenges
+- Key time limitations
+- Basic costs/practical notes
+- When to seek help
 
 ### Quality Standards:
+- Be concise: Focus on core concepts and main points only
+- Limit explanations to essentials
 - Base EVERY legal statement on retrieved documents with proper citations [Title - Act Number - Section (p.Page)]
 - Provide specific section numbers, not general references
 - Explain legal concepts in plain English while maintaining accuracy
 - Give practical, actionable advice within Bangladeshi legal framework
-- Address potential counterarguments or complications
-- Be comprehensive but concise
+- Address key counterarguments briefly
 
 ### Limitations:
 - State clearly when information is insufficient
-- Recommend consultation with qualified lawyers for complex matters
+- Recommend consultation with qualified lawyers
 - Never guarantee legal outcomes
 - Stay strictly within Bangladeshi law"""
 
@@ -430,78 +421,79 @@ ENHANCED_SYSTEM_PROMPT_BN = """আপনি LEGAL BEE, বাংলাদেশ�
 আপনার বাংলাদেশী আইনি ব্যবস্থার গভীর জ্ঞান আছে যার মধ্যে রয়েছে সাংবিধানিক আইন, দেওয়ানি আইন, ফৌজদারি আইন, পারিবারিক আইন, ব্যাংকিং আইন, শ্রম আইন, সাইবার আইন এবং প্রশাসনিক আইন। আপনি আইনি নজির, প্রক্রিয়াগত প্রয়োজনীয়তা এবং ব্যবহারিক প্রভাব বোঝেন।
 
 ### উত্তরের কাঠামো (বাধ্যতামূলক):
-সর্বদা এই নির্দিষ্ট বিভাগগুলি দিয়ে আপনার উত্তর সাজান:
+সর্বদা এই নির্দিষ্ট বিভাগগুলি দিয়ে আপনার উত্তর সাজান, প্রত্যেক বিভাগকে সংক্ষিপ্ত রাখুন এবং মূল বিষয়ে ফোকাস করুন:
 
 **🎯 আইনি সমস্যা চিহ্নিতকরণ**
-- নির্দিষ্ট আইনি সমস্যা(গুলি) স্পষ্টভাবে চিহ্নিত করুন
+- সংক্ষেপে নির্দিষ্ট আইনি সমস্যা(গুলি) চিহ্নিত করুন
 - সংশ্লিষ্ট আইনের ক্ষেত্র শ্রেণীবদ্ধ করুন
 - জরুরী মাত্রা তুলে ধরুন (যদি প্রযোজ্য হয়)
 
 **📚 প্রযোজ্য আইন ও বিশ্লেষণ**
-- সুনির্দিষ্ট উদ্ধৃতি সহ প্রাসঙ্গিক আইন, অ্যাক্ট এবং ধারাসমূহ উল্লেখ করুন
-- প্রতিটি আইনের ব্যবহারিক অর্থ ব্যাখ্যা করুন
-- নির্দিষ্ট পরিস্থিতিতে আইন কীভাবে প্রয়োগ হয় তা বিশ্লেষণ করুন
+- সুনির্দিষ্ট উদ্ধৃতি সহ মূল প্রাসঙ্গিক আইন, অ্যাক্ট এবং ধারাসমূহ উল্লেখ করুন
+- সংক্ষেপে প্রতিটি আইনের অর্থ ব্যাখ্যা করুন
+- সংক্ষেপে পরিস্থিতিতে প্রয়োগ বিশ্লেষণ করুন
 
 **⚖️ আইনি অধিকার ও প্রতিকার**
-- ব্যক্তির নির্দিষ্ট অধিকারসমূহ তালিকাভুক্ত করুন
-- উপলব্ধ আইনি প্রতিকার ও বিকল্পসমূহ
-- সম্ভাব্য ফলাফল ও পরিণতি
+- ব্যক্তির মূল অধিকারসমূহ তালিকাভুক্ত করুন
+- মূল উপলব্ধ আইনি প্রতিকার
+- মূল সম্ভাব্য ফলাফল
 
 **📋 ধাপে ধাপে কর্মপরিকল্পনা**
-- তাৎক্ষণিক গ্রহণীয় পদক্ষেপ
-- প্রয়োজনীয় কাগজপত্র
-- অনুসরণীয় আইনি প্রক্রিয়া
-- সময়ের বিবেচনা
+- মূল তাৎক্ষণিক পদক্ষেপ
+- অত্যাবশ্যক কাগজপত্র
+- মূল আইনি প্রক্রিয়া
+- গুরুত্বপূর্ণ সময়ের বিবেচনা
 
 **⚠️ গুরুত্বপূর্ণ বিবেচনা**
-- সম্ভাব্য চ্যালেঞ্জ বা জটিলতা
-- সময়সীমা (দাবিত্যাগের আইন)
-- খরচ ও ব্যবহারিক বিবেচনা
-- কখন জরুরি আইনি সহায়তা নিতে হবে
+- মূল চ্যালেঞ্জ
+- মূল সময়সীমা
+- মৌলিক খরচ/ব্যবহারিক নোট
+- সাহায্য নেওয়ার সময়
 
 ### গুণমানের মান:
+- সংক্ষিপ্ত হোন: মূল ধারণা এবং প্রধান পয়েন্টগুলিতে ফোকাস করুন
+- ব্যাখ্যা অপরিহার্যতায় সীমাবদ্ধ রাখুন
 - প্রতিটি আইনি বক্তব্য উদ্ধৃত নথিপত্রের উপর ভিত্তি করুন সঠিক উদ্ধৃতি সহ [শিরোনাম - আইন নম্বর - ধারা (পৃ.পেজ)]
 - সাধারণ রেফারেন্স নয়, নির্দিষ্ট ধারা নম্বর প্রদান করুন
 - নির্ভুলতা বজায় রেখে সহজ বাংলায় আইনি ধারণা ব্যাখ্যা করুন
 - বাংলাদেশী আইনি কাঠামোর মধ্যে ব্যবহারিক, কার্যকর পরামর্শ দিন
-- সম্ভাব্য পাল্টা যুক্তি বা জটিলতার সমাধান করুন
-- ব্যাপক কিন্তু সংক্ষিপ্ত হোন
+- মূল পাল্টা যুক্তি সংক্ষেপে সমাধান করুন
 
 ### সীমাবদ্ধতা:
 - তথ্য অপর্যাপ্ত হলে স্পষ্টভাবে উল্লেখ করুন
-- জটিল বিষয়ে যোগ্য আইনজীবীদের পরামর্শের সুপারিশ করুন
+- যোগ্য আইনজীবীদের পরামর্শের সুপারিশ করুন
 - আইনি ফলাফলের গ্যারান্টি দেবেন না
 - কঠোরভাবে বাংলাদেশী আইনের মধ্যে সীমাবদ্ধ থাকুন"""
 
 # Enhanced fact extraction with legal categorization
 ENHANCED_FACT_EXTRACT_PROMPT_EN = ChatPromptTemplate.from_template(
-    """As a legal expert, extract and categorize the key facts from this personal legal situation. Focus on legally relevant elements that would be important for case analysis.
+    """As a legal expert, extract and categorize the key facts from this personal legal situation. Focus on legally relevant elements that would be important for case analysis. Be concise.
 
 Personal Story: {query}
 
-Please provide:
-1. KEY LEGAL FACTS (chronological order)
-2. PARTIES INVOLVED (plaintiff, defendant, witnesses, etc.)
-3. LEGAL ISSUES IDENTIFIED
-4. RELEVANT DATES AND DEADLINES
-5. EVIDENCE MENTIONED
-6. DESIRED OUTCOME/RELIEF
+Provide brief:
+1. KEY LEGAL FACTS
+2. PARTIES INVOLVED
+3. LEGAL ISSUES
+4. RELEVANT DATES
+5. EVIDENCE
+6. DESIRED OUTCOME
 
 Extracted Legal Analysis:"""
 )
 
 ENHANCED_FACT_EXTRACT_PROMPT_BN = ChatPromptTemplate.from_template(
-    """একজন আইনি বিশেষজ্ঞ হিসেবে, এই ব্যক্তিগত আইনি পরিস্থিতি থেকে মূল তথ্যগুলি বের করুন এবং শ্রেণীবদ্ধ করুন। মামলা বিশ্লেষণের জন্য গুরুত্বপূর্ণ আইনিভাবে প্রাসঙ্গিক উপাদানগুলিতে মনোনিবেশ করুন।
+    """একজন আইনি বিশেষজ্ঞ হিসেবে, এই ব্যক্তিগত আইনি পরিস্থিতি থেকে মূল তথ্যগুলি বের করুন এবং শ্রেণীবদ্ধ করুন। মামলা বিশ্লেষণের জন্য গুরুত্বপূর্ণ আইনিভাবে প্রাসঙ্গিক উপাদানগুলিতে মনোনিবেশ করুন। সংক্ষিপ্ত হোন।
 
 ব্যক্তিগত ঘটনা: {query}
 
-অনুগ্রহ করে প্রদান করুন:
-১. মূল আইনি তথ্য (কালানুক্রমিক ক্রম)
-২. জড়িত পক্ষসমূহ (বাদী, বিবাদী, সাক্ষী ইত্যাদি)
-৩. চিহ্নিত আইনি সমস্যা
-৪. প্রাসঙ্গিক তারিখ এবং সময়সীমা
-৫. উল্লেখিত প্রমাণ
-৬. কাঙ্ক্ষিত ফলাফল/প্রতিকার
+সংক্ষিপ্তভাবে প্রদান করুন:
+১. মূল আইনি তথ্য
+২. জড়িত পক্ষসমূহ
+৩. আইনি সমস্যা
+৪. প্রাসঙ্গিক তারিখ
+৫. প্রমাণ
+৬. কাঙ্ক্ষিত ফলাফল
 
 নিষ্কাশিত আইনি বিশ্লেষণ:"""
 )
@@ -534,7 +526,7 @@ def process_query_with_legal_intelligence(query: str) -> Dict[str, Any]:
         'expanded_terms': expand_query_terms(query, lang)
     }
 
-# Enhanced main processing function
+# Enhanced main processing function (Enriched: Added try-except in more places for robustness)
 def enhanced_legal_processing(query: str) -> str:
     """Enhanced legal processing with multi-step analysis"""
     try:
@@ -569,18 +561,21 @@ def enhanced_legal_processing(query: str) -> str:
         # Step 3: Enhanced fact extraction for story-type queries
         processed_query = query
         if query_type == 'story':
-            if lang == 'bn':
-                fact_chain = ENHANCED_FACT_EXTRACT_PROMPT_BN | llm | StrOutputParser()
-            else:
-                fact_chain = ENHANCED_FACT_EXTRACT_PROMPT_EN | llm | StrOutputParser()
-            
-            extracted_facts = fact_chain.invoke({"query": query})
-            
-            # Combine extracted facts with original query
-            if lang == 'bn':
-                processed_query = f"আইনি বিশ্লেষণ: {extracted_facts}\n\nমূল প্রশ্ন: {query}"
-            else:
-                processed_query = f"Legal Analysis: {extracted_facts}\n\nOriginal Query: {query}"
+            try:
+                if lang == 'bn':
+                    fact_chain = ENHANCED_FACT_EXTRACT_PROMPT_BN | llm | StrOutputParser()
+                else:
+                    fact_chain = ENHANCED_FACT_EXTRACT_PROMPT_EN | llm | StrOutputParser()
+                
+                extracted_facts = fact_chain.invoke({"query": query})
+                
+                # Combine extracted facts with original query
+                if lang == 'bn':
+                    processed_query = f"আইনি বিশ্লেষণ: {extracted_facts}\n\nমূল প্রশ্ন: {query}"
+                else:
+                    processed_query = f"Legal Analysis: {extracted_facts}\n\nOriginal Query: {query}"
+            except Exception as e:
+                logger.warning(f"Fact extraction failed: {e}")
         
         # Step 4: Multi-strategy document retrieval
         retrieved_docs = multi_retriever.hybrid_search(processed_query, lang)
@@ -597,12 +592,12 @@ def enhanced_legal_processing(query: str) -> str:
         if lang == 'bn':
             prompt = ChatPromptTemplate.from_messages([
                 ("system", ENHANCED_SYSTEM_PROMPT_BN),
-                ("user", "প্রশ্ন: {question}\n\nআইনি নথি ও প্রসঙ্গ:\n{context}\n\nবিস্তারিত আইনি বিশ্লেষণ ও সমাধান প্রদান করুন:")
+                ("user", "প্রশ্ন: {question}\n\nআইনি নথি ও প্রসঙ্গ:\n{context}\n\nসংক্ষিপ্তভাবে মূল বিষয়ে ফোকাস করে উত্তর দিন:")
             ])
         else:
             prompt = ChatPromptTemplate.from_messages([
                 ("system", ENHANCED_SYSTEM_PROMPT_EN),
-                ("user", "Question: {question}\n\nLegal Documents & Context:\n{context}\n\nProvide detailed legal analysis and solution:")
+                ("user", "Question: {question}\n\nLegal Documents & Context:\n{context}\n\nRespond concisely focusing on the main topic:")
             ])
         
         # Step 8: Generate response with enhanced chain
@@ -669,7 +664,7 @@ def enhanced_retrieve_and_respond(query: str) -> str:
     """Main function for enhanced RAG processing"""
     return enhanced_legal_processing(query)
 
-# Quality assessment function
+# Quality assessment function (Enriched: More metrics)
 def assess_response_quality(response: str, query: str, docs: List[Document]) -> Dict[str, Any]:
     """Assess the quality of generated response"""
     # Check citation coverage
@@ -685,11 +680,15 @@ def assess_response_quality(response: str, query: str, docs: List[Document]) -> 
     sections_found = sum(1 for section in required_sections if section in response.upper())
     structure_completeness = sections_found / len(required_sections)
     
+    # Enriched: Add average relevance score
+    avg_relevance = np.mean([doc.metadata.get('computed_relevance', 0) for doc in docs]) if docs else 0
+    
     return {
         'citation_count': citation_count,
         'document_count': len(docs),
         'structure_completeness': structure_completeness,
         'response_length': len(response.split()),
+        'average_relevance': avg_relevance,
         'language': lang
     }
 
@@ -724,18 +723,14 @@ def comprehensive_test():
         # Process query
         response = enhanced_retrieve_and_respond(query)
         
-        # Assess quality
-        # Note: We can't access docs directly from the main function, so we'll simulate
-        quality_score = {
-            'response_length': len(response.split()),
-            'has_citations': '[' in response and ']' in response,
-            'has_structure': any(marker in response.upper() for marker in ['🎯', '📚', '⚖️', '📋', '⚠️'])
-        }
+        # Assess quality (Simulate docs for test; in real, pass actual docs)
+        quality_score = assess_response_quality(response, query, [])  # Placeholder docs
         
         print(f"📊 Response Quality:")
         print(f"   - Length: {quality_score['response_length']} words")
-        print(f"   - Has Citations: {quality_score['has_citations']}")
-        print(f"   - Structured Format: {quality_score['has_structure']}")
+        print(f"   - Citation Count: {quality_score['citation_count']}")
+        print(f"   - Structure Completeness: {quality_score['structure_completeness'] * 100:.1f}%")
+        print(f"   - Average Relevance: {quality_score['average_relevance']:.2f}")
         
         print(f"\n💡 RESPONSE:")
         print(response)
